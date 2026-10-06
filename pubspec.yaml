@@ -1,0 +1,23 @@
+name: dongyidong
+description: 动一动 · 久坐提醒（每40分钟提醒你站起来活动）
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  shared_preferences: ^2.3.0
+  flutter_local_notifications: ^17.2.0
+  timezone: ^0.9.4
+  intl: ^0.19.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
