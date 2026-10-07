@@ -1,0 +1,36 @@
+name: 构建 APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: 生成 Android 工程
+        run: flutter create --org com.dongyidong --project-name dongyidong --platforms=android .
+
+      - name: 拉取依赖
+        run: flutter pub get
+
+      - name: 打 Android 补丁
+        run: python3 patch_android.py
+
+      - name: 构建 Release APK
+        run: flutter build apk --release
+
+      - name: 上传 APK 产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: dongyidong-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
