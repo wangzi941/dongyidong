@@ -24,7 +24,55 @@ jobs:
         run: flutter pub get
 
       - name: 打 Android 补丁
-        run: python3 patch_android.py
+        run: |
+          cat > /tmp/patch.py << 'PYEOF'
+          import sys
+          from pathlib import Path
+
+          m = Path("android/app/src/main/AndroidManifest.xml")
+          text = m.read_text(encoding="utf-8")
+          if "POST_NOTIFICATIONS" not in text:
+              perms = (
+                  '    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>\n'
+                  '    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>\n'
+                  '    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>\n'
+                  '    <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>\n'
+                  '    <uses-permission android:name="android.permission.VIBRATE"/>\n'
+                  '    <uses-permission android:name="android.permission.WAKE_LOCK"/>\n'
+                  '    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>\n'
+              )
+              if "<application" not in text:
+                  sys.exit("manifest 结构不符合预期")
+              text = text.replace("<application", perms + "    <application", 1)
+              m.write_text(text, encoding="utf-8")
+              print("manifest 补丁完成")
+          else:
+              print("manifest 已含权限")
+
+          candidates = [(Path("android/app/build.gradle.kts"), True), (Path("android/app/build.gradle"), False)]
+          found = next(((p, k) for p, k in candidates if p.exists()), (None, None))
+          gpath, kts = found
+          if gpath is None:
+              sys.exit("未找到 build.gradle(.kts)")
+          text = gpath.read_text(encoding="utf-8")
+          if "coreLibraryDesugaring" in text:
+              print("desugaring 已开启")
+          else:
+              flag = "isCoreLibraryDesugaringEnabled = true" if kts else "coreLibraryDesugaringEnabled true"
+              dep = '    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")' if kts else "    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'"
+              if "compileOptions {" in text:
+                  text = text.replace("compileOptions {", "compileOptions {\n        " + flag, 1)
+              else:
+                  text = text.replace("android {", "android {\n    compileOptions {\n        " + flag + "\n    }", 1)
+              if "dependencies {" in text:
+                  text = text.replace("dependencies {", "dependencies {\n" + dep, 1)
+              else:
+                  text += "\ndependencies {\n" + dep + "\n}\n"
+              gpath.write_text(text, encoding="utf-8")
+              print("desugaring 补丁完成")
+          print("全部补丁完成")
+          PYEOF
+          python3 /tmp/patch.py
 
       - name: 构建 Release APK
         run: flutter build apk --release
